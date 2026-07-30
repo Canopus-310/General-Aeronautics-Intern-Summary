@@ -1,0 +1,32 @@
+These bin files are data from the hover testing done on July 30th, 2026. 
+The drone was filled with 0, 2, 4, 6, 8 and 10 kg payloads during each test cycle. 
+The drone was disarmed for 30 seconds to calculate onboard power consumed by electrical components.
+It hovered at 5 metres AGL for 2 minutes. 
+The ambient wind speed was 3-5 m/s, though my calculations suggest it shouldn't affect power consumption much.  
+
+
+Initial results are listed below - the bin files have the actual payload weight attached in their names. 
+
+Estimated Weight of Payload for 2026-07-30 12-13-01 (0 kg) is: 0.2642 kg
+The estimated Motor Power loss for 2026-07-30 12-13-01 (0 kg) is: 35.3471 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 12-13-01 (0 kg) is: 340.0534 W
+
+Estimated Weight of Payload for 2026-07-30 12-28-56 (2 kg) is: 2.3763 kg
+The estimated Motor Power loss for 2026-07-30 12-28-56 (2 kg) is: 40.6159 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 12-28-56 (2 kg) is: 398.1837 W
+
+Estimated Weight of Payload for 2026-07-30 13-48-31 (4 kg) is: 4.8130 kg
+The estimated Motor Power loss for 2026-07-30 13-48-31 (4 kg) is: 47.0318 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 13-48-31 (4 kg) is: 469.0769 W
+
+Estimated Weight of Payload for 2026-07-30 13-55-38 (6 kg) is: 6.5993 kg
+The estimated Motor Power loss for 2026-07-30 13-55-38 (6 kg) is: 52.6211 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 13-55-38 (6 kg) is: 524.0884 W
+
+Estimated Weight of Payload for 2026-07-30 14-00-42 (8 kg) is: 8.9351 kg
+The estimated Motor Power loss for 2026-07-30 14-00-42 (8 kg) is: 60.0302 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 14-00-42 (8 kg) is: 598.8319 W
+
+Estimated Weight of Payload for 2026-07-30 14-22-12 (10 kg botched) is: 11.0400 kg
+The estimated Motor Power loss for 2026-07-30 14-22-12 (10 kg botched) is: 64.3950 W
+The estimated Total Power consumed per motor during stable hover for 2026-07-30 14-22-12 (10 kg botched) is: 666.3731 W
