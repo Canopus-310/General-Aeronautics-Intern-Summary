@@ -147,4 +147,6 @@ for bin_file in sorted(testing_folder.glob("*.bin")):
     Weight_Payload = Total_weight - drone_without_payload_weight # subtracting weight of the drone itself to get the payload weight
 
     print(f"Estimated Weight of Payload for {bin_file.stem} is: {Weight_Payload:.4f} kg")
+    print(f"The estimated Motor Power loss for {bin_file.stem} is: {P_motor_loss:.4f} W")
+    print(f"The estimated Total Power consumed during stable hover for {bin_file.stem} is: {P_total:.4f} W")
     print()
