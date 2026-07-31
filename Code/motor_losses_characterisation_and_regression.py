@@ -52,8 +52,6 @@ print("R at each operating point:")
 for i, (I, r) in enumerate(zip(current_A, R)):
     print(f"  {I:.1f}A → R = {r:.4f} ohms")
 
-# MULTIVARIATE REGRESSION ANALYSIS
-
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -104,26 +102,24 @@ denom = np.sqrt(2 * rho * area )
 Power_physics = (thrust_N ** 1.5 ) / denom
 
 LHS = power_W
-k_e = 1e-6
-k_h = 0.000305
+prop_coeff = 0.718
+# k_linear = combines the effect of ball bearing friction coeff and hysteresis loss coeff - done so that python doesnt get confused between two terms that both scale with omega.
 
 # Temp = 20 # in degrees
 # delta_T = Temp - 20 # in degrees
-# alpha_copper = 0.00393  # per degree C
+# alpha_copper = 0.00393  # per degree C - to account for resistance increase as temperature increase - not accounted currently but is commented here.
 
-def RHS(X, R_copper, k_b, prop_coeff):
+def RHS(X, R_copper, k_linear, k_e):
     current_A, rps, thrust_N = X  # unpack your two variables
-    return R_copper * current_A **2 + k_h * rps * (30.0 /np.pi) + k_e * (rps * 30.0 / np.pi)**2 + k_b * rps + (1/prop_coeff) * (thrust_N ** 1.5 ) / denom
+    return R_copper * current_A **2 + k_linear * rps * (30.0 /np.pi) + k_e * (rps * 30.0 / np.pi)**2 + (1/prop_coeff) * (thrust_N ** 1.5 ) / denom
 
-popt, pcov = curve_fit(RHS, (current_A, speed_rps, thrust_N), LHS, p0=(0.050, 1e-7, 0.75), bounds = ([0, 0, 0.6], [1, 0.1, 0.8]))
-R_copper, k_b, prop_coeff = popt
+popt, pcov = curve_fit(RHS, (current_A, speed_rps, thrust_N), LHS, p0=(0.050, 0.0003051047197, 1e-6), bounds = ([0, 0.0001857699, 1.3821130813834840411e-7], [1, 0.0109063, 1.9747433472512970246e-6]))
+R_copper, k_linear, k_e = popt
 
 
 print(f"R_copper: {R_copper:.5f} ohms")
-
-
-print(f"k_b: {k_b:.6e}")
-print(f"prop_coeff: {prop_coeff:.6e}")
+print(f"k_linear: {k_linear:.6e}")
+print(f"k_e: {k_e:.6e}")
 
 y_predicted = RHS((current_A, speed_rps, thrust_N), *popt)
 residuals = LHS - y_predicted
