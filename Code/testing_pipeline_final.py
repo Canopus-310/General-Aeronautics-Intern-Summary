@@ -7,7 +7,7 @@ from pathlib import Path
 
 # establish pipeline for the files in the 
 
-testing_folder = Path(r"C:\Users\GA\Desktop\Test_folder")
+testing_folder = Path(r"C:\Users\GA\Desktop\Hover_test")
 output_folder = testing_folder / "aligned_csv"
 
 if output_folder.exists():
@@ -15,9 +15,14 @@ if output_folder.exists():
 output_folder.mkdir(exist_ok=True)
 
 TOL = 60_000  # us -- GPS needs this much slack; BAT/RCOU/CTUN are tighter but this is safe for all, this is the time window for aligning the messages of gps, ctun, bat and rcou messages for each bin file into one bin file. 60 milisecond is the current value
-drone_without_payload_weight = 18.5 # kg, weight of the drone without any payload
+drone_without_payload_weight = 18.75 # kg, weight of the drone without any payload, corrected from 18.5 to 18.75 kg since new components were added to the drone and the weight 
 WINDOW = '2.5s'          #
 # start looping over each bin files inside the folder
+
+known_payload_kg = 0  # debugging part
+test_correction_factor = 1.0 # debugging part accounting for steinmeitz factor. 
+error_store = pd.Series(dtype=float) # to store the error values for each bin file
+overall_error_including_drone_weight_store = pd.Series(dtype=float) # to store the overall error values for each bin file including the drone weight
 
 for bin_file in sorted(testing_folder.glob("*.bin")):
 
@@ -87,12 +92,12 @@ for bin_file in sorted(testing_folder.glob("*.bin")):
     m = merged.set_index('dt').sort_index()
 
     m['SAlt_roll_std']   = m['SAlt'].rolling(WINDOW).std()
-    # calculate 75th percentile of the rolling std to find a threshold for stable hover
-    STD_THRESHOLD = m['SAlt_roll_std'].quantile(0.75)
+    # calculate 50th percentile of the rolling std to find a threshold for stable hover
+    STD_THRESHOLD = m['SAlt_roll_std'].quantile(0.50) # 50th percentile of the rolling std to find a threshold for stable hover
     m['SAlt_roll_count'] = m['SAlt'].rolling(WINDOW).count()
 
     stable_hover = m[
-        (m['SAlt'] > 1.5) &
+        (m['SAlt'] > 3.5) &
         (m['SAlt_roll_std'] < STD_THRESHOLD) &
         (m['SAlt_roll_count'] >= 20)
     ]
@@ -100,14 +105,14 @@ for bin_file in sorted(testing_folder.glob("*.bin")):
     current_motor = (stable_hover['Curr'].median() - current_at_0_height) / 6.0 # subtracting the current at 0 height from the current at stable hover to get the current consumed by the motors
     altitude_above_sea_level = stable_hover['GPS_Alt'].median() # median of the GPS altitude above sea level for stable hover
     current_pwm = stable_hover['PWM_avg'].median() # median of the PWM values for stable hover
-    P_total = stable_hover['Power_total'].median() / 6.0 # median of the total power consumed for stable hover per motor
+    # subtract a power at 0 height to the total power consumed for stable hover to get the total power consumed for stable hover per motor
+    P_total = (stable_hover['Power_total'].median() - current_at_0_height * stable_hover['Volt'].median()) / 6.0 # median of the total power consumed for stable hover per motor
 
     # motor and prop loss related parameters 
-    R_copper = 0.10025 # ohms
-    k_h = 0.000305 # hysteresis loss coefficient
-    k_e = 1e-6        # eddy current loss coefficient
-    k_b = 5.852344e-02 # Bearing friction losses
-    prop_coeff = 7.185656e-01 # propeller efficiency coefficient
+    R_copper = 0.09667  # ohms
+    k_linear = 4.322131e-03 # old - 0.000305 * test_correction_factor # hysteresis loss coefficient
+    k_e = 1.603907e-06 #1e-6  * test_correction_factor      # eddy current loss coefficient
+    prop_coeff = 0.718 # propeller efficiency coefficient
 
     # thrust blockage and effective area removed for each motor
     radius = 0.3048 # m
@@ -135,8 +140,7 @@ for bin_file in sorted(testing_folder.glob("*.bin")):
     radpersec = RPM * 2 * np.pi / 60 # rad/s
 
     # power loss calculations 
-    P_motor_loss = R_copper * current_motor**2 + k_h * RPM + k_e * RPM**2 + k_b * radpersec
-
+    P_motor_loss = R_copper * current_motor**2 + k_linear * RPM + k_e * RPM**2
     if P_total - P_motor_loss <= 0:
        print(f"Skipping {bin_file.stem}: power balance went negative — check hover window")
        continue
@@ -145,8 +149,39 @@ for bin_file in sorted(testing_folder.glob("*.bin")):
     Weight = T_total / 9.81
     Total_weight = Weight * 6.0 # 6 motors on drone
     Weight_Payload = Total_weight - drone_without_payload_weight # subtracting weight of the drone itself to get the payload weight
+    
 
     print(f"Estimated Weight of Payload for {bin_file.stem} is: {Weight_Payload:.4f} kg")
     print(f"The estimated Motor Power loss for {bin_file.stem} is: {P_motor_loss:.4f} W")
     print(f"The estimated Total Power consumed per motor during stable hover for {bin_file.stem} is: {P_total:.4f} W")
+
+    error = ((Weight_Payload - known_payload_kg) / known_payload_kg * 100.0) if known_payload_kg != 0 else 0.0
+    error_store = pd.concat([error_store, pd.Series([error])], ignore_index=True)
+    print(f"Error in Payload Weight estimation for {bin_file.stem} is: {error:.4f} %")
+
+    overall_error_including_drone_weight = (Total_weight - (known_payload_kg + drone_without_payload_weight)) / (known_payload_kg + drone_without_payload_weight) * 100.0
+    overall_error_including_drone_weight_store = pd.concat([overall_error_including_drone_weight_store, pd.Series([overall_error_including_drone_weight])], ignore_index=True)
+    print(f"Overall error including drone weight for {bin_file.stem} is: {overall_error_including_drone_weight:.4f} %")
+    # true_total_weight = known_payload_kg + drone_without_payload_weight
+    # T_true_per_motor = true_total_weight * 9.81 / 6.0
+
+    # P_needed_theory = (T_true_per_motor ** 1.5) / (prop_coeff * np.sqrt(2*rho*prop_wash_area))
+    # implied_loss = P_total - P_needed_theory
+
+    # print(f"Known payload: {known_payload_kg:.2f} kg")
+    known_payload_kg += 2
+        
+
+    # print(f"Model's P_motor_loss: {P_motor_loss:.2f} W")
+    # print(f"Implied real loss:    {implied_loss:.2f} W")
+    # print(f"Gap:                  {implied_loss - P_motor_loss:.2f} W")
+
     print()
+# changed it to not account for the first bin file since it has no payload and the error is 0.0 % which is not a true representation of the error in the payload weight estimation.
+# convert all errors to their absolute values to get a better representation of the error in the payload weight estimation.
+error_store = error_store[1:].abs()
+print(f"Mean error in payload weight estimation: {error_store[1:].mean():.4f} %")
+
+# convert all overall errors including drone weight to their absolute values to get a better representation of the error in the weight estimation.
+overall_error_including_drone_weight_store = overall_error_including_drone_weight_store[1:].abs()
+print(f"Mean overall error including drone weight: {overall_error_including_drone_weight_store[1:].mean():.4f} %")
